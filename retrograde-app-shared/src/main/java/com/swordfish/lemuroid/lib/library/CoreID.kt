@@ -41,6 +41,12 @@ enum class CoreID(
         "mGBA",
         "libmgba_libretro_android.so",
     ),
+    // ff-bgm1x: VBA-M libretro 코어 (BGM·효과음 1배속 포함, 앱에 함께 묶는다)
+    VBAM(
+        "vbam",
+        "VBA-M",
+        "libvbam_libretro_android.so",
+    ),
     MUPEN64_PLUS_NEXT(
         "mupen64plus_next_gles3",
         "Mupen64Plus",

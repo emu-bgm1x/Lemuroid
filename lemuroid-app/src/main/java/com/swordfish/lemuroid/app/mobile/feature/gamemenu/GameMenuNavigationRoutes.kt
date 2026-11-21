@@ -44,6 +44,18 @@ enum class GameMenuRoute(
         titleId = R.string.game_menu_settings,
         parent = HOME,
     ),
+    // ff-bgm1x
+    CHEATS(
+        route = "cheats",
+        titleId = R.string.game_menu_cheats,
+        parent = HOME,
+    ),
+    // ff-bgm1x 소리 분류 (1x Lab 앱)
+    SOUNDS(
+        route = "sounds",
+        titleId = R.string.game_menu_sounds,
+        parent = HOME,
+    ),
     ;
 
     fun canGoBack(): Boolean {

@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.swordfish.touchinput.radial.LocalLemuroidPadTheme
+import com.swordfish.touchinput.radial.custom.CustomLayoutKeys
+import com.swordfish.touchinput.radial.custom.customLayoutElement
 import com.swordfish.touchinput.radial.ui.LemuroidButtonForeground
 import com.swordfish.touchinput.radial.ui.LemuroidControlBackground
 import gg.padkit.PadKitScope
@@ -22,7 +24,7 @@ fun LemuroidControlAnalog(
 ) {
     val theme = LocalLemuroidPadTheme.current
     Box(
-        modifier = modifier.padding(theme.padding),
+        modifier = modifier.customLayoutElement(CustomLayoutKeys.of(id)).padding(theme.padding),
         contentAlignment = Alignment.Center,
     ) {
         ControlAnalog(
