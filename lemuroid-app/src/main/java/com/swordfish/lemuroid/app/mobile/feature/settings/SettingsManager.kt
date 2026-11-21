@@ -58,6 +58,13 @@ class SettingsManager(private val context: Context, sharedPreferences: Lazy<Shar
 
     suspend fun allowDirectGameLoad() = booleanPreference(R.string.pref_key_allow_direct_game_load, true)
 
+    // ff-bgm1x: 게임 화면 방향 기본값 (auto = 휴대폰 회전을 따라감)
+    suspend fun screenOrientation() = stringPreference(R.string.pref_key_screen_orientation, SCREEN_ORIENTATIONS.first())
+
+    companion object {
+        val SCREEN_ORIENTATIONS = listOf("auto", "landscape", "portrait")
+    }
+
     private suspend fun booleanPreference(
         keyId: Int,
         default: Boolean,

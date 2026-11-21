@@ -42,12 +42,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.swordfish.lemuroid.R
+import com.swordfish.lemuroid.app.mobile.feature.gamemenu.cheats.GameMenuCheatsScreen
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.coreoptions.GameMenuCoreOptionsScreen
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.coreoptions.GameMenuCoreOptionsViewModel
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.states.GameMenuStatesScreen
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.states.GameMenuStatesViewModel
 import com.swordfish.lemuroid.app.mobile.shared.compose.ui.AppTheme
 import com.swordfish.lemuroid.app.shared.GameMenuContract
+import com.swordfish.lemuroid.app.shared.cheats.CheatsManager
 import com.swordfish.lemuroid.app.shared.coreoptions.LemuroidCoreOption
 import com.swordfish.lemuroid.app.shared.input.InputDeviceManager
 import com.swordfish.lemuroid.common.kotlin.serializable
@@ -78,6 +80,9 @@ class GameMenuActivity : RetrogradeComponentActivity() {
         val audioEnabled: Boolean,
         val fastForwardSupported: Boolean,
         val fastForwardEnabled: Boolean,
+        // ff-bgm1x: 이 게임의 화면 방향 ("" = 기본값) 과 기본값
+        val gameScreenOrientation: String,
+        val defaultScreenOrientation: String,
         val numDisks: Int,
         val currentDisk: Int,
         val currentTiltConfiguration: TiltConfiguration,
@@ -116,6 +121,10 @@ class GameMenuActivity : RetrogradeComponentActivity() {
                     extras?.getBoolean(GameMenuContract.EXTRA_FAST_FORWARD_SUPPORTED, false) ?: false,
                 fastForwardEnabled =
                     extras?.getBoolean(GameMenuContract.EXTRA_FAST_FORWARD, false) ?: false,
+                gameScreenOrientation =
+                    extras?.getString(GameMenuContract.EXTRA_GAME_SCREEN_ORIENTATION) ?: "",
+                defaultScreenOrientation =
+                    extras?.getString(GameMenuContract.EXTRA_DEFAULT_SCREEN_ORIENTATION) ?: "auto",
                 numDisks =
                     extras?.getInt(GameMenuContract.EXTRA_DISKS, 0) ?: 0,
                 currentDisk =
@@ -226,6 +235,20 @@ class GameMenuActivity : RetrogradeComponentActivity() {
                             gameMenuRequest,
                         )
                     }
+                    composable(GameMenuRoute.CHEATS) {
+                        GameMenuCheatsScreen(
+                            game = gameMenuRequest.game,
+                            cheatsManager = remember { CheatsManager(applicationContext) },
+                            onChanged = ::markCheatsChanged,
+                        )
+                    }
+                    composable(GameMenuRoute.CHEATS) {
+                        GameMenuCheatsScreen(
+                            game = gameMenuRequest.game,
+                            cheatsManager = CheatsManager(applicationContext),
+                            onChanged = ::markCheatsChanged,
+                        )
+                    }
                 }
             }
         }
@@ -257,9 +280,20 @@ class GameMenuActivity : RetrogradeComponentActivity() {
         }
     }
 
+    // ff-bgm1x: 치트가 바뀌었으면 어떤 방법으로 메뉴를 닫든 게임 화면이 다시 건다
+    private var cheatsChanged = false
+
+    private fun markCheatsChanged() {
+        cheatsChanged = true
+        setResult(RESULT_OK, Intent().putExtra(GameMenuContract.RESULT_CHEATS_CHANGED, true))
+    }
+
     private fun onResult(block: Intent.() -> Unit) {
         val resultIntent = Intent()
         resultIntent.block()
+        if (cheatsChanged) {
+            resultIntent.putExtra(GameMenuContract.RESULT_CHEATS_CHANGED, true)
+        }
         setResult(RESULT_OK, resultIntent)
         finish()
     }

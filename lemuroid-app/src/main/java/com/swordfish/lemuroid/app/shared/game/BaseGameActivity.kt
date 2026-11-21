@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import com.swordfish.lemuroid.app.mobile.feature.game.GameActivity
 import com.swordfish.lemuroid.app.mobile.feature.game.GameService
 import com.swordfish.lemuroid.app.mobile.feature.settings.SettingsManager
+import com.swordfish.lemuroid.app.mobile.feature.settings.screenOrientationToActivityInfo
 import com.swordfish.lemuroid.app.mobile.shared.compose.ui.AppTheme
 import com.swordfish.lemuroid.app.shared.GameMenuContract
 import com.swordfish.lemuroid.app.shared.ImmersiveActivity
@@ -89,6 +90,13 @@ abstract class BaseGameActivity : ImmersiveActivity() {
     private val startGameTime = System.currentTimeMillis()
     private var finishTriggered = false
 
+    private var defaultScreenOrientation = SettingsManager.SCREEN_ORIENTATIONS.first()
+
+    private fun applyScreenOrientation() {
+        val value = baseGameScreenViewModel.gameScreenOrientation().ifEmpty { defaultScreenOrientation }
+        requestedOrientation = screenOrientationToActivityInfo(value)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setUpExceptionsHandler()
@@ -118,6 +126,12 @@ abstract class BaseGameActivity : ImmersiveActivity() {
         baseGameScreenViewModel = viewModel
 
         lifecycle.addObserver(baseGameScreenViewModel)
+
+        // ff-bgm1x: 게임 화면 방향 (기본값 + 이 게임)
+        lifecycleScope.launch {
+            defaultScreenOrientation = baseGameScreenViewModel.defaultScreenOrientation()
+            applyScreenOrientation()
+        }
 
         setContent {
             AppTheme {
@@ -214,6 +228,11 @@ abstract class BaseGameActivity : ImmersiveActivity() {
                     GameMenuContract.EXTRA_FAST_FORWARD,
                     (baseGameScreenViewModel.retroGameView.retroGameView?.frameSpeed ?: 1) > 1,
                 )
+                this.putExtra(
+                    GameMenuContract.EXTRA_GAME_SCREEN_ORIENTATION,
+                    baseGameScreenViewModel.gameScreenOrientation(),
+                )
+                this.putExtra(GameMenuContract.EXTRA_DEFAULT_SCREEN_ORIENTATION, defaultScreenOrientation)
                 this.putExtra(GameMenuContract.EXTRA_CURRENT_TILT_CONFIG, currentTiltConfiguration)
                 // TODO PADS... Make sure to avoid passing this if a physical pad is connected.
                 this.putExtra(GameMenuContract.EXTRA_TILT_ALL_CONFIGS, tiltConfigurations.toTypedArray())
@@ -405,6 +424,15 @@ abstract class BaseGameActivity : ImmersiveActivity() {
                         )
                     this.frameSpeed = if (fastForwardEnabled) 2 else 1
                 }
+            }
+            if (data?.hasExtra(GameMenuContract.RESULT_CHANGE_GAME_SCREEN_ORIENTATION) == true) {
+                baseGameScreenViewModel.setGameScreenOrientation(
+                    data.getStringExtra(GameMenuContract.RESULT_CHANGE_GAME_SCREEN_ORIENTATION) ?: "",
+                )
+                applyScreenOrientation()
+            }
+            if (data?.getBooleanExtra(GameMenuContract.RESULT_CHEATS_CHANGED, false) == true) {
+                baseGameScreenViewModel.applyCheats()
             }
             if (data?.getBooleanExtra(GameMenuContract.RESULT_EDIT_TOUCH_CONTROLS, false) == true) {
                 baseGameScreenViewModel.showEditControls(true)

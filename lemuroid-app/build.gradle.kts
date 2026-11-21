@@ -13,6 +13,11 @@ android {
         versionCode = 252
         versionName = "1.17.0" // Always remember to update Cores Tag!
         applicationId = "com.swordfish.lemuroid"
+        // ff-bgm1x: 실제 코어 파일을 묶으므로 크기를 줄이려고 ABI 하나만 넣는다.
+        // 기본 arm64-v8a, 32비트 기기용은 -PffbgmAbi=armeabi-v7a 로 따로 빌드한다
+        ndk {
+            abiFilters += listOf((project.findProperty("ffbgmAbi") as String?) ?: "arm64-v8a")
+        }
     }
     flavorDimensions += listOf("opensource", "cores")
 
@@ -101,7 +106,14 @@ android {
         getByName("debug") {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-DEBUG"
-            resValue("string", "lemuroid_name", "LemuroiDebug")
+            // ff-bgm1x: 64비트·32비트 APK 를 앱 이름으로 구분한다
+            val ffbgm32 = ((project.findProperty("ffbgmAbi") as String?) ?: "arm64-v8a") == "armeabi-v7a"
+            val ffbgmBits = if (ffbgm32) "32bit" else "64bit"
+            resValue(
+                "string",
+                "lemuroid_name",
+                "LemuroiDebug $ffbgmBits",
+            )
         }
     }
 

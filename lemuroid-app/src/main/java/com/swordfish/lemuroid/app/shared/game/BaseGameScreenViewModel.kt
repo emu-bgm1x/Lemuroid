@@ -13,6 +13,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.swordfish.lemuroid.app.mobile.feature.game.GameService
 import com.swordfish.lemuroid.app.mobile.feature.settings.SettingsManager
+import com.swordfish.lemuroid.app.shared.cheats.CheatsManager
+import com.swordfish.lemuroid.app.shared.game.viewmodel.GameViewModelCustomLayout
+import com.swordfish.touchinput.radial.custom.CustomLayout
 import com.swordfish.lemuroid.app.shared.game.viewmodel.GameViewModelInput
 import com.swordfish.lemuroid.app.shared.game.viewmodel.GameViewModelRetroGameView
 import com.swordfish.lemuroid.app.shared.game.viewmodel.GameViewModelSaves
@@ -37,6 +40,7 @@ import com.swordfish.libretrodroid.GLRetroView
 import com.swordfish.touchinput.radial.sensors.TiltConfiguration
 import com.swordfish.touchinput.radial.settings.TouchControllerSettingsManager
 import gg.padkit.inputevents.InputEvent
+import com.swordfish.touchinput.radial.custom.CustomButtonFunction
 import gg.padkit.inputstate.InputState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -46,13 +50,13 @@ import timber.log.Timber
 
 class BaseGameScreenViewModel(
     private val appContext: Context,
-    game: Game,
-    settingsManager: SettingsManager,
+    private val game: Game,
+    private val settingsManager: SettingsManager,
     inputDeviceManager: InputDeviceManager,
     controllerConfigsManager: ControllerConfigsManager,
     system: GameSystem,
-    systemCoreConfig: SystemCoreConfig,
-    sharedPreferences: SharedPreferences,
+    private val systemCoreConfig: SystemCoreConfig,
+    private val sharedPreferences: SharedPreferences,
     savesManager: SavesManager,
     statesManager: StatesManager,
     statesPreviewManager: StatesPreviewManager,
@@ -267,6 +271,34 @@ class BaseGameScreenViewModel(
         }
     }
 
+    // ff-bgm1x: 게임별 치트
+    private val cheatsManager = CheatsManager(appContext)
+
+    init {
+        viewModelScope.launch {
+            retroGameView.waitGLEvent<GLRetroView.GLRetroEvents.FrameRendered>()
+            applyCheats()
+        }
+    }
+
+    // 켜진 치트만 다시 건다 (하나를 끄면 전부 지운 뒤 나머지를 다시 거는 방식)
+    fun applyCheats() {
+        retroGameView.retroGameView?.applyCheats(CheatsManager.enabledCodes(cheatsManager.load(game)))
+    }
+
+    // ff-bgm1x: 게임 화면 방향. 이 게임 값("" 이면 없음)이 있으면 그것, 없으면 설정의 기본값
+    private fun gameScreenOrientationKey() = "ff_bgm1x_screen_orientation_game_${game.id}"
+
+    fun gameScreenOrientation(): String = sharedPreferences.getString(gameScreenOrientationKey(), "") ?: ""
+
+    fun setGameScreenOrientation(value: String) {
+        sharedPreferences.edit().putString(gameScreenOrientationKey(), value).apply()
+    }
+
+    suspend fun defaultScreenOrientation(): String = settingsManager.screenOrientation()
+
+    suspend fun screenOrientation(): String = gameScreenOrientation().ifEmpty { defaultScreenOrientation() }
+
     fun toggleFastForward() {
         Timber.d("Loading quick save")
         retroGameView.retroGameView?.apply {
@@ -304,7 +336,47 @@ class BaseGameScreenViewModel(
     }
 
     fun handleVirtualInputEvent(events: List<InputEvent>) {
-        touchControls.handleVirtualInputEvent(events)
+        // ff-bgm1x: 사용자가 만든 기능 버튼은 게임에 보내지 않고 그 기능을 실행한다
+        val (custom, rest) =
+            events.partition { it is InputEvent.Button && CustomButtonFunction.fromKeyCode(it.id) != null }
+        custom.forEach { event ->
+            event as InputEvent.Button
+            when (CustomButtonFunction.fromKeyCode(event.id)) {
+                CustomButtonFunction.MENU ->
+                    touchControls.handleVirtualInputEvent(listOf(InputEvent.Button(KeyEvent.KEYCODE_BUTTON_MODE, event.pressed)))
+                CustomButtonFunction.FAST_FORWARD -> if (event.pressed) toggleFastForward()
+                CustomButtonFunction.QUICK_SAVE -> if (event.pressed) sideEffects.saveQuickSave()
+                CustomButtonFunction.QUICK_LOAD -> if (event.pressed) sideEffects.loadQuickSave()
+                CustomButtonFunction.NONE, null -> {}
+            }
+        }
+        touchControls.handleVirtualInputEvent(rest)
+    }
+
+    // ff-bgm1x: 버튼·게임 화면 자유 배치 (기본 / 이 게임)
+    private val customLayout = GameViewModelCustomLayout(sharedPreferences, game)
+
+    fun getCustomLayout(): Flow<GameViewModelCustomLayout.Loaded> =
+        customLayout.observe(touchControls.touchControllerIdFlow(), touchControls.screenOrientationFlow())
+
+    fun saveCustomLayout(
+        layout: CustomLayout,
+        forGame: Boolean,
+    ) {
+        customLayout.save(touchControls.currentTouchControllerId(), touchControls.currentScreenOrientation(), layout, forGame)
+    }
+
+    fun clearCustomLayout(forGame: Boolean) {
+        customLayout.clear(touchControls.currentTouchControllerId(), touchControls.currentScreenOrientation(), forGame)
+    }
+
+    // 자유 배치 편집 화면 표시
+    private val editCustomLayout = MutableStateFlow(false)
+
+    fun isCustomLayoutEditShown(): Flow<Boolean> = editCustomLayout
+
+    fun showCustomLayoutEdit(show: Boolean) {
+        editCustomLayout.value = show
     }
 
     override fun onCreate(owner: LifecycleOwner) {

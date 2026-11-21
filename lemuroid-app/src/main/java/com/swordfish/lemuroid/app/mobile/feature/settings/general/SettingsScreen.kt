@@ -13,6 +13,8 @@ import androidx.navigation.NavController
 import com.swordfish.lemuroid.R
 import com.swordfish.lemuroid.app.mobile.feature.main.MainRoute
 import com.swordfish.lemuroid.app.mobile.feature.main.navigateToRoute
+import com.swordfish.lemuroid.app.mobile.feature.settings.SettingsManager
+import com.swordfish.lemuroid.app.mobile.feature.settings.screenOrientationName
 import com.swordfish.lemuroid.app.shared.library.LibraryIndexScheduler
 import com.swordfish.lemuroid.app.utils.android.settings.LemuroidCardSettingsGroup
 import com.swordfish.lemuroid.app.utils.android.settings.LemuroidSettingsList
@@ -188,6 +190,17 @@ private fun GeneralSettings() {
                 ),
             title = { Text(text = stringResource(id = R.string.settings_title_viewport_alignment)) },
             items = stringListResource(R.array.pref_key_viewport_alignment_display_names),
+        )
+        // ff-bgm1x: 게임 화면 방향 기본값
+        LemuroidSettingsList(
+            state =
+                indexPreferenceState(
+                    R.string.pref_key_screen_orientation,
+                    SettingsManager.SCREEN_ORIENTATIONS.first(),
+                    SettingsManager.SCREEN_ORIENTATIONS,
+                ),
+            title = { Text(text = stringResource(id = R.string.settings_title_screen_orientation)) },
+            items = SettingsManager.SCREEN_ORIENTATIONS.map { screenOrientationName(it) },
         )
     }
 }
